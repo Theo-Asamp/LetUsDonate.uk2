@@ -30,7 +30,7 @@ This project was developed for university and demonstrates modern full-stack dev
 
 -- Backend: PHP + Laravel
 
--- Database: MySQL
+-- Database: SQLite
 
 -- Version Control: Git + GitHub
 
@@ -48,7 +48,7 @@ This project was developed for university and demonstrates modern full-stack dev
 
 Frontend (React)
 
--- cd let-us-donate-uk
+-- cd frontend
 -- npm install
 -- npm run dev
 -- open [localhost:](http://localhost:5173/)
@@ -61,9 +61,9 @@ Backend (Laravel)
 -- php artisan key:generate
 -- php artisan serve
 
-Configure MySQL in .env:
+Configure SQLite in .env:
 
--- DB_DATABASE=letusdonate
+-- DB_DATABASE=sqlite/Clothing_Donations.db
 -- DB_USERNAME=root
 -- DB_PASSWORD=
 
