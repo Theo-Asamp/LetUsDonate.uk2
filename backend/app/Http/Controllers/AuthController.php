@@ -6,22 +6,27 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
+use App\Models\DomainUser;
 
 class AuthController extends Controller
 {
     // Login
     public function login(Request $request)
     {
-        $credentials = $request->only('email', 'password');
-
-        if (Auth::attempt($credentials)) {
-            $user = Auth::user();
+        $request->validate([
+            'email' => 'required|email',
+            'password' => 'required|string',
+        ]);
+      
+        //finds user by their email in the User table
+        $user = DomainUser::where('user_email', $request->email)->first();
+        //checks if user does exist and password is correct
+        if ($user && Hash::check($request->password, $user->user_password)) {
             return response()->json([
                 'status' => 'success',
-                'user' => $user
-            ]);
+                'user' => $user]);
         }
-
+        
         return response()->json([
             'status' => 'error',
             'message' => 'Invalid credentials'
