@@ -41,10 +41,12 @@ function DonorSignUp() {
       const data = await response.json();
 
       if (data.status === 'success') {
-        alert(data.message);
+        setMessage('Signup successful! Redirecting to login...');
+        setTimeout(()=> {
         navigate('/login'); 
-      } else {
-        setMessage(data.message);
+      }, 1000); //redirects after 1 second
+    }else {
+        setMessage(data.message || 'Something went wrong');
       }
     } catch (err) {
       setMessage('Could not connect to the server');
