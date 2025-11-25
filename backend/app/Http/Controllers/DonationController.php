@@ -8,11 +8,13 @@ class DonationController extends Controller
 {
     public function getUserDonations($user_id)
     {
-        $donations = Donation::where('user_id', $user_id)->orderBy('created_at', 'desc')->get();
+        $donations = Donation::where('user_id', $user_id)
+            ->orderBy('created_at', 'desc')  // or donation_date if that's your column
+            ->get();
 
         return response()->json([
-            'status' => 'success',
-            'donations' => $donations
+            'status'    => 'success',
+            'donations' => $donations,
         ]);
     }
 
@@ -39,7 +41,7 @@ class DonationController extends Controller
 
         return response()->json([
             'status'  => 'success',
-            'message' => 'Donation submitted successfully!'
+            'message' => 'Donation submitted successfully!',
         ]);
     }
 }

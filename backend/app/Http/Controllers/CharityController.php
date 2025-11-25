@@ -16,7 +16,7 @@ class CharityController extends Controller
 
         return response()->json([
             'status'    => 'success',
-            'charities' => $charities
+            'charities' => $charities,
         ]);
     }
 }
