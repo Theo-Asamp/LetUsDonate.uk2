@@ -3,6 +3,8 @@
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\DonationController;
+use App\Http\Controllers\CharityController;
 
 /*
 |--------------------------------------------------------------------------
@@ -32,3 +34,6 @@ Route::get('/users', function () {
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/signup', [AuthController::class, 'signup']);
 Route::post('/logout', [AuthController::class, 'logout']);
+Route::get('/donations/{user_id}', [DonationController::class, 'getUserDonations']);
+Route::post('/donations', [DonationController::class, 'addDonation']);
+Route::get('/charities', [CharityController::class, 'getCharities']);
