@@ -64,7 +64,7 @@ export default function User_Dashboard() {
     if (!user?.id) return;
 
     const formData = new FormData(e.target);
-    formData.append("user_id", user.id);
+    formData.append("user_ID", user.id);
     if (file) formData.append("item_image", file);
 
     try {

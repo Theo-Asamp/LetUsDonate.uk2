@@ -54,7 +54,7 @@ class AuthController extends Controller
             'user_name' => $request->fullName,
             'user_email' => $request->email,
             'user_password' => Hash::make($request->password),
-            'role_ID' => $donorRole->role_ID,
+            'role_id' => $donorRole->role_id,
         ]);
     
         //creates the donor record

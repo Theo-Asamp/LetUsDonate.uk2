@@ -16,6 +16,7 @@ class DomainUser extends Model
         'user_name',
         'user_email',
         'user_password',
-        'role_ID',
+        'role_id',
     ];
+    protected $hidden = ['user_password'];
 }
