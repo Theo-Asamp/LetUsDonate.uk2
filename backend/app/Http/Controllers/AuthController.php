@@ -10,7 +10,7 @@ use App\Models\DomainUser;
 
 class AuthController extends Controller
 {
-    // Login
+    //login
     public function login(Request $request)
     {
         $request->validate([
@@ -36,20 +36,20 @@ class AuthController extends Controller
     //Sign up
     public function signup(Request $request)
     {
-        // Validate input
+        //validates input
         $request->validate([
             'fullName' => 'required|string|max:255',
             'email' => 'required|email|unique:User,user_email',
             'password' => 'required|string|min:6',
         ]);
     
-        // Automatically assign the Donor role
+        //Automatically assigns the Donor role just becuase we only allow donors to signup due to security measures 
         $donorRole = \App\Models\Role::firstOrCreate(
             ['role_name' => 'donor'],
             ['role_description' => 'A person who donates clothing or items.']
         );
     
-        // Create the user
+        //Creates the user
         $user = \App\Models\DomainUser::create([
             'user_name' => $request->fullName,
             'user_email' => $request->email,
@@ -57,7 +57,7 @@ class AuthController extends Controller
             'role_ID' => $donorRole->role_ID,
         ]);
     
-        // Create the donor record
+        //creates the donor record
         \App\Models\Donor::create([
             'user_ID' => $user->user_ID,
             'donor_address' => null,
@@ -70,10 +70,3 @@ class AuthController extends Controller
     }
 }
     
-//     // Logout (optional)
-//     public function logout()
-//     {
-//         Auth::logout();
-//         return response()->json(['status' => 'success']);
-//     }
-// }
