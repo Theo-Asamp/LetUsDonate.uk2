@@ -1,40 +1,56 @@
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import '../../../css/records.css';
+import React, { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
+import "../../../css/records.css";
 
 export function My_Donations() {
   const [donations, setDonations] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
 
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  const userId =
+    user?.user_ID ?? user?.id ?? user?.donor_ID ?? null;
 
   useEffect(() => {
-    if (!user.id) return;
+    if (!userId) return;
 
-    fetch(`http://localhost:8000/get_donations.php?user_id=${user.id}`)
+    fetch(`http://localhost:8000/api/donations/${userId}`)
       .then((res) => res.json())
       .then((data) => {
-        if (data.status === 'success') setDonations(data.donations);
-        else console.error('Error fetching donations:', data.message);
+        if (data.status === "success") {
+          setDonations(data.donations);
+        } else {
+          console.error("Error:", data);
+        }
         setLoading(false);
       })
       .catch((err) => {
-        console.error('Network error:', err);
+        console.error("Network error:", err);
         setLoading(false);
       });
-  }, [user.id]);
+  }, [userId]);
 
-  // Filter donations //
+  // Extract item fields safely  
+  const getItem = (donation) => donation.items?.[0] || {};
 
+  // Filtering logic
   const filteredDonations = donations.filter((d) => {
+    const item = getItem(d);
+
     const matchesSearch =
-      d.item_name?.toLowerCase().includes(search.toLowerCase()) ||
-      d.item_category?.toLowerCase().includes(search.toLowerCase());
+      (item.item_name || "")
+        .toLowerCase()
+        .includes(search.toLowerCase()) ||
+      (item.item_category || "")
+        .toLowerCase()
+        .includes(search.toLowerCase());
+
     const matchesStatus = statusFilter
-      ? d.donation_status?.toLowerCase() === statusFilter.toLowerCase()
+      ? d.donation_status?.toLowerCase() ===
+        statusFilter.toLowerCase()
       : true;
+
     return matchesSearch && matchesStatus;
   });
 
@@ -42,20 +58,21 @@ export function My_Donations() {
     <main>
       <div className="records-container">
         <div className="header-left">
-          <h2>Donation History</h2>
+          <h2>My Donation History</h2>
         </div>
 
         <div className="return-right">
           <ul>
             <li>
-             <Link to ="/User_Dashboard" className ="return-link">
-             Return
-             </Link>
+              <Link to="/User_Dashboard" className="return-link">
+                Return
+              </Link>
             </li>
           </ul>
         </div>
       </div>
 
+      {/* Filters */}
       <div className="filter-bar">
         <input
           type="text"
@@ -64,80 +81,94 @@ export function My_Donations() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
+
         <select
           className="status-filter"
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
         >
           <option value="">All Statuses</option>
-          <option value="approved">Approved</option>
-          <option value="pending">Pending</option>
-          <option value="rejected">Rejected</option>
+          <option value="Pending">Pending</option>
+          <option value="Approved">Approved</option>
+          <option value="Rejected">Rejected</option>
         </select>
-        <button className="filter-button" onClick={() => {}}>
-          Filter
-        </button>
       </div>
 
+      {/* Table */}
       <div className="table-container">
-        <div className="table">
-          <table className="table">
-            <thead>
+        <table className="table">
+          <thead>
+            <tr>
+              <th>Category</th>
+              <th>Item Name</th>
+              <th>Description</th>
+              <th>Condition</th>
+              <th>Image</th>
+              <th>Date Donated</th>
+              <th>Status</th>
+              <th>Charity</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
               <tr>
-                <th>Category</th>
-                <th>Item Name</th>
-                <th>Description</th>
-                <th>Condition</th>
-                <th>Image</th>
-                <th>Date Donated</th>
-                <th>Status</th>
+                <td colSpan="8">Loading donations...</td>
               </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr>
-                  <td colSpan="7">Loading donations...</td>
-                </tr>
-              ) : filteredDonations.length > 0 ? (
-                filteredDonations.map((d) => (
+            ) : filteredDonations.length > 0 ? (
+              filteredDonations.map((d) => {
+                const item = getItem(d);
+
+                const imgUrl = item.item_image
+                  ? `http://localhost:8000/storage/${item.item_image}`
+                  : null;
+
+                return (
                   <tr key={d.donation_ID}>
-                    <td>{d.item_category}</td>
-                    <td>{d.item_name}</td>
-                    <td>{d.item_description || 'N/A'}</td>
-                    <td>{d.item_condition}</td>
+                    <td>{item.item_category || "N/A"}</td>
+                    <td>{item.item_name || "N/A"}</td>
+                    <td>{item.item_description || "N/A"}</td>
+                    <td>{item.item_condition || "N/A"}</td>
+
                     <td>
-                      {d.item_image ? (
+                      {imgUrl ? (
                         <a
-                          href={`http://localhost:8000/${d.item_image}`}
+                          href={imgUrl}
                           target="_blank"
                           rel="noopener noreferrer"
                         >
                           <img
-                            src={`http://localhost:8000/${d.item_image}`}
-                            alt={d.item_name}
+                            src={imgUrl}
+                            alt={item.item_name}
                             style={{
-                              width: '50px',
-                              height: 'auto',
-                              borderRadius: '4px',
+                              width: "50px",
+                              height: "auto",
+                              borderRadius: "4px",
                             }}
                           />
                         </a>
                       ) : (
-                        'N/A'
+                        "N/A"
                       )}
                     </td>
-                    <td>{d.donation_date}</td>
-                    <td>{d.donation_status}</td>
+
+                    <td>
+                      {d.donation_date
+                        ? d.donation_date.split(" ")[0]
+                        : "N/A"}
+                    </td>
+
+                    <td>{d.donation_status || "N/A"}</td>
+                    <td>{d.charity?.charity_name || "Unknown"}</td>
                   </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan="7">No donations found.</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+                );
+              })
+            ) : (
+              <tr>
+                <td colSpan="8">No donations found.</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </div>
     </main>
   );

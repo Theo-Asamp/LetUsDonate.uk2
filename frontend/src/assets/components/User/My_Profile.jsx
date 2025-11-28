@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import '../../../css/records.css';
 
-
 export function My_Profile() {
   const [user, setUser] = useState(null);
   const [formData, setFormData] = useState({
@@ -53,9 +52,9 @@ export function My_Profile() {
         <div className="return-right">
           <ul>
             <li>
-             <Link to="/User_dashboard" className="return-link">
-               Return
-             </Link>
+              <Link to="/User_Dashboard" className="return-link">
+                Return
+              </Link>
             </li>
           </ul>
         </div>

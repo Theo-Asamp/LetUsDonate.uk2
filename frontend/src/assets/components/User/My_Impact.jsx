@@ -2,32 +2,58 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import '../../../css/my_impact.css';
 
-
 export function My_Impact() {
   const [donations, setDonations] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  // Get logged-in user
+  const storedUser = localStorage.getItem("user");
+  let user = {};
+
+  try {
+    user = JSON.parse(storedUser || "{}");
+  } catch {
+    user = {};
+  }
+
+  // Normalise user ID from your DB (id, user_ID, donor_ID)
+  const userId =
+    user?.user_ID ??
+    user?.id ??
+    user?.donor_ID ??
+    null;
 
   useEffect(() => {
-    if (!user.id) {
+    if (!userId) {
       setLoading(false);
       return;
     }
 
-    fetch(`http://localhost:8000/get_donations.php?user_id=${user.id}`)
+    // USE LARAVEL API — NOT THE OLD PHP FILE
+    fetch(`http://localhost:8000/api/donations/${userId}`)
       .then((res) => res.json())
       .then((data) => {
-        if (data.status === 'success') setDonations(data.donations);
+        if (data.status === "success" && Array.isArray(data.donations)) {
+          setDonations(data.donations);
+        } else {
+          console.warn("Unexpected donations payload:", data);
+        }
         setLoading(false);
       })
       .catch((err) => {
-        console.error('Error fetching donations:', err);
+        console.error("Error fetching donations:", err);
         setLoading(false);
       });
-  }, [user.id]);
+  }, [userId]);
 
-  const totalItems = donations.length;
+  // SIMPLE IMPACT STATS
+  const totalDonations = donations.length;
+
+  // If using donation_item table: sum quantities instead of counting donations
+  const totalItems = donations.reduce((sum, d) => {
+    return sum + (d.quantity ? Number(d.quantity) : 1);
+  }, 0);
+
   const totalCO2 = (totalItems * 1.5).toFixed(1);
   const peopleHelped = totalItems * 2;
 
@@ -44,39 +70,43 @@ export function My_Impact() {
           </Link>
         </div>
       </div>
-      <h3>
-        {' '}
-        <p>
-          Track your contributions and see how your donations help the community
-          and environment.
-        </p>
-      </h3>
+
+      <p className="impact-description">
+        Track your contributions and see how your donations help the community
+        and environment.
+      </p>
 
       {loading ? (
         <p>Loading your impact...</p>
       ) : (
         <div className="impact-grid">
+
           {/* Total Items Donated */}
           <div className="impact-card">
             <i className="fa-solid fa-shirt fa-2x"></i>
             <h3>{totalItems}</h3>
-            <p>Total items you've donated so far.</p>
+            <p>Total individual items you've donated so far.</p>
           </div>
 
           {/* CO₂ Saved */}
           <div className="impact-card">
             <i className="fa-solid fa-earth-africa fa-2x"></i>
             <h3>{totalCO2} kg</h3>
-            <p>
-              Estimated CO₂ saved by donating items instead of discarding them.
-            </p>
+            <p>Estimated CO₂ saved by donating instead of discarding.</p>
           </div>
 
           {/* People Helped */}
           <div className="impact-card">
             <i className="fa-solid fa-heart fa-2x"></i>
             <h3>{peopleHelped}</h3>
-            <p>Number of people who have benefited from your donations.</p>
+            <p>Estimated number of people helped through your donations.</p>
+          </div>
+
+          {/* Total donation submissions */}
+          <div className="impact-card">
+            <i className="fa-solid fa-box fa-2x"></i>
+            <h3>{totalDonations}</h3>
+            <p>Total donation submissions you’ve made.</p>
           </div>
         </div>
       )}
