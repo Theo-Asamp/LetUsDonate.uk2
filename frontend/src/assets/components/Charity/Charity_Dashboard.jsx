@@ -21,31 +21,32 @@ export function Charity_Dashboard() {
     const fetchData = async () => {
       try {
         const donationRes = await fetch(
-          `http://localhost:8000/get_donations.php?charity_id=${user.user_ID}`
+          `http://localhost:8000/api/donations?charity_ID=${user.charity_ID}`
         );
         const donationData = await donationRes.json();
-
+    
         const inventoryRes = await fetch(
-          `http://localhost:8000/get_inventory.php?charity_id=${user.user_ID}`
+          `http://localhost:8000/api/inventory?charity_ID=${user.charity_ID}`
         );
         const inventoryData = await inventoryRes.json();
-
-        if (donationData.status === 'success') setDonations(donationData.donations);
-        if (inventoryData.status === 'success') setInventory(inventoryData.items);
-
-        const totalItems = donationData.donations?.length || 0;
+    
+        setDonations(donationData);
+        setInventory(inventoryData);
+    
+        const totalItems = donationData.length || 0;
         setStats({
           items: totalItems,
           co2: (totalItems * 1.5).toFixed(1),
           people: totalItems * 2,
         });
-
+    
         setLoading(false);
       } catch (err) {
         console.error('Could not fetch charity data:', err);
         setLoading(false);
       }
     };
+    
 
     fetchData();
   }, [user.user_ID, role]);
@@ -86,7 +87,7 @@ export function Charity_Dashboard() {
           <ul>
             <li>
               <i className="fa-solid fa-shirt"></i>
-              <Link to="/charity_inventory"> Inventory</Link>
+              <Link to="/View_Inventory">Inventory</Link>
             </li>
             <li>
               <i className="fa-solid fa-warehouse"></i>

@@ -13,7 +13,7 @@ export default function User_Dashboard() {
   const [modalOpen, setModalOpen] = useState(false);
   const [status, setStatus] = useState(null);
 
-  // Check for logged-in user
+  // Load logged in user
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
     if (!storedUser) {
@@ -23,28 +23,35 @@ export default function User_Dashboard() {
     setUser(JSON.parse(storedUser));
   }, [navigate]);
 
-  // Fetch donations for the user
+  // Load donations
   useEffect(() => {
-    if (!user?.id) return;
-    fetch(`http://localhost:8000/get_donations.php?user_id=${user.id}`)
+    if (!user?.donor?.donor_ID) return;
+
+    fetch(`http://localhost:8000/api/donations/user/${user.donor.donor_ID}`)
       .then((res) => res.json())
       .then((data) => {
         if (data.status === "success") setDonations(data.donations);
-      });
+      })
+      .catch((err) => console.error("Donation fetch error:", err));
   }, [user]);
 
-  // Fetch charities
+  // Load charities
   useEffect(() => {
-    fetch("http://localhost:8000/get_charities.php")
+    fetch("http://localhost:8000/api/charities")
       .then((res) => res.json())
       .then((data) => {
-        if (data.status === "success") setCharities(data.charities);
+        setCharities(data);
         setLoadingCharities(false);
       })
       .catch(() => setLoadingCharities(false));
   }, []);
 
-  // File upload handling
+  const getCharityName = (id) => {
+    const c = charities.find((x) => x.charity_ID === id);
+    return c ? c.charity_name : "Unknown";
+  };
+
+  // File preview
   const handleChange = (e) => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
@@ -58,29 +65,35 @@ export default function User_Dashboard() {
     setPreview(null);
   };
 
-  // Submit new donation
+  // Submit donation
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!user?.id) return;
+    if (!user?.donor?.donor_ID) return;
 
     const formData = new FormData(e.target);
-    formData.append("user_ID", user.id);
-    if (file) formData.append("item_image", file);
+    formData.append("donor_ID", user.donor.donor_ID);
+    if (file) formData.append("image", file);
 
     try {
-      const res = await fetch("http://localhost:8000/add_donation.php", {
+      const res = await fetch("http://localhost:8000/api/donations", {
         method: "POST",
+        headers: {
+          "Accept": "application/json",  // ← FIXED
+        },
         body: formData,
       });
 
-      const data = await res.json();
+      const data = await res.json(); // will no longer blow up
+
       if (data.status === "success") {
         setStatus({ type: "success", message: data.message });
+
+        // Reset
         e.target.reset();
         setFile(null);
 
-        // Refresh donations
-        fetch(`http://localhost:8000/get_donations.php?user_id=${user.id}`)
+        // Reload donations
+        fetch(`http://localhost:8000/api/donations/user/${user.donor.donor_ID}`)
           .then((res) => res.json())
           .then((data) => {
             if (data.status === "success") setDonations(data.donations);
@@ -89,13 +102,12 @@ export default function User_Dashboard() {
         setStatus({ type: "error", message: data.message });
       }
     } catch (err) {
-      setStatus({ type: "error", message: "Network error. Please try again." });
+      setStatus({ type: "error", message: "Network error. Try again." });
     }
 
     setTimeout(() => setStatus(null), 6000);
   };
 
-  // Logout
   const handleLogout = () => {
     localStorage.removeItem("user");
     localStorage.removeItem("role");
@@ -104,6 +116,7 @@ export default function User_Dashboard() {
 
   return (
     <>
+      {/* DASHBOARD LAYOUT */}
       <div className="user-dashboard-container">
         <div className="dashboard-left">
           <div className="dashboard">
@@ -111,15 +124,15 @@ export default function User_Dashboard() {
               <ul>
                 <li>
                   <i className="fa-solid fa-gauge"></i>
-                <Link to ="/my_impact">My Impact</Link>
+                  <Link to="/my_impact">My Impact</Link>
                 </li>
                 <li>
                   <i className="fa-solid fa-inbox"></i>
-                <Link to ="/my_donations">My Donations</Link>
+                  <Link to="/my_donations">My Donations</Link>
                 </li>
                 <li>
                   <i className="fa-solid fa-user"></i>
-              <Link to ="/my_profile">Profile Settings</Link>
+                  <Link to="/my_profile">Profile Settings</Link>
                 </li>
                 <li>
                   <i className="fa-solid fa-arrow-right-from-bracket"></i>
@@ -135,19 +148,21 @@ export default function User_Dashboard() {
 
               <div className="stats-container">
                 <div className="stat-card">
-                  <ii className="fa-solid fa-earth-africa"></ii>
-                  <p className="stat-number">{(donations.length * 1.5).toFixed(1)}kg</p>
+                  <i className="fa-solid fa-earth-africa"></i>
+                  <p className="stat-number">
+                    {(donations.length * 1.5).toFixed(1)}kg
+                  </p>
                   <p className="stat-text">CO₂ Saved</p>
                 </div>
 
                 <div className="stat-card">
-                  <ii className="fa-solid fa-shirt"></ii>
+                  <i className="fa-solid fa-shirt"></i>
                   <p className="stat-number">{donations.length}</p>
                   <p className="stat-text">Total Items Donated</p>
                 </div>
 
                 <div className="stat-card">
-                  <ii className="fa-solid fa-heart"></ii>
+                  <i className="fa-solid fa-heart"></i>
                   <p className="stat-number">{donations.length * 2}</p>
                   <p className="stat-text">People Helped</p>
                 </div>
@@ -156,10 +171,16 @@ export default function User_Dashboard() {
           </div>
         </div>
 
+        {/* DONATION FORM */}
         <div className="dashboard-right">
           <form className="new-donation" onSubmit={handleSubmit}>
             <h3>Make a New Donation</h3>
-            {status && <div className={`form-message ${status.type}`}>{status.message}</div>}
+
+            {status && (
+              <div className={`form-message ${status.type}`}>
+                {status.message}
+              </div>
+            )}
 
             <input type="text" name="item_name" placeholder="Item Name" required />
 
@@ -181,6 +202,7 @@ export default function User_Dashboard() {
             </select>
 
             <input type="number" name="quantity" min="1" placeholder="Quantity" required />
+
             <select name="condition" required>
               <option value="">Condition</option>
               <option value="new">New</option>
@@ -189,14 +211,25 @@ export default function User_Dashboard() {
               <option value="used-fair">Used - Fair</option>
             </select>
 
-            <textarea name="description" className="description" placeholder="Description" required />
+            <textarea
+              name="description"
+              className="description"
+              placeholder="Description"
+              required
+            />
 
             <div className="file-upload">
-              <input type="file" accept="image/*" onChange={handleChange} />
+            <input type="file" name="image" accept="image/*" onChange={handleChange} />
+
               {file && preview && (
                 <div className="file-preview">
                   <div className="image-preview">
-                    <img src={preview} alt="Preview" className="thumbnail" onClick={() => setModalOpen(true)} />
+                    <img
+                      src={preview}
+                      alt="Preview"
+                      className="thumbnail"
+                      onClick={() => setModalOpen(true)}
+                    />
                     <button type="button" onClick={handleDeleteFile} className="remove-btn">
                       Remove
                     </button>
@@ -206,7 +239,11 @@ export default function User_Dashboard() {
                     <div className="image-mode" onClick={() => setModalOpen(false)}>
                       <div className="mode-content" onClick={(e) => e.stopPropagation()}>
                         <img src={preview} alt="Full Preview" className="full-image" />
-                        <button type="button" className="close-modal-btn" onClick={() => setModalOpen(false)}>
+                        <button
+                          type="button"
+                          className="close-modal-btn"
+                          onClick={() => setModalOpen(false)}
+                        >
                           ✕
                         </button>
                       </div>
@@ -221,10 +258,10 @@ export default function User_Dashboard() {
             {loadingCharities ? (
               <p>Loading charities...</p>
             ) : (
-              <select name="charity_name" required>
+              <select name="charity_ID" required>
                 <option value="">Select Charity</option>
                 {charities.map((c) => (
-                  <option key={c.charity_ID} value={c.charity_name}>
+                  <option key={c.charity_ID} value={c.charity_ID}>
                     {c.charity_name}
                   </option>
                 ))}
@@ -236,49 +273,77 @@ export default function User_Dashboard() {
         </div>
       </div>
 
+      {/* DONATION HISTORY */}
       <div className="donation-history full-width">
         <h3>Recent Donations</h3>
+
         <table>
           <thead>
             <tr>
               <th>Item</th>
               <th>Image</th>
               <th>Date Submitted</th>
-              <th>Charity Selected</th>
+              <th>Charity</th>
               <th>Status</th>
               <th>Pickup Address</th>
             </tr>
           </thead>
+
           <tbody>
-            {donations.length > 0 ? (
-              donations.slice(0, 4).map((d) => (
-                <tr key={d.donation_ID}>
-                  <td>{d.item_name}</td>
-                  <td>
-                    {d.item_image ? (
-                      <a href={`http://localhost:8000/${d.item_image}`} target="_blank" rel="noopener noreferrer">
-                        <img
-                          src={`http://localhost:8000/${d.item_image}`}
-                          alt={d.item_name}
-                          style={{ width: "50px", height: "auto", borderRadius: "4px" }}
-                        />
-                      </a>
-                    ) : (
-                      "N/A"
-                    )}
-                  </td>
-                  <td>{d.donation_date.split(" ")[0]}</td>
-                  <td>{d.charity_name}</td>
-                  <td>{d.donation_status}</td>
-                  <td>{d.pickup_address || "n/a"}</td>
-                </tr>
-              ))
+  {donations.length > 0 ? (
+    donations.slice(0, 4).map((d) => {
+      const item = d.items?.[0]; // first donated item
+
+      return (
+        <tr key={d.donation_ID}>
+          
+          {/* ITEM NAME */}
+          <td>{item?.item_name ?? "N/A"}</td>
+
+          {/* IMAGE */}
+          <td>
+            {item?.item_image ? (
+              <a
+                href={`http://localhost:8000/storage/${item.item_image}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <img
+                  src={`http://localhost:8000/storage/${item.item_image}`}
+                  alt={item.item_name}
+                  style={{
+                    width: "50px",
+                    height: "auto",
+                    borderRadius: "4px",
+                  }}
+                />
+              </a>
             ) : (
-              <tr>
-                <td colSpan="6">No donations yet.</td>
-              </tr>
+              "N/A"
             )}
-          </tbody>
+          </td>
+
+          {/* DATE */}
+          <td>{new Date(d.donation_date).toLocaleDateString()}</td>
+
+          {/* CHARITY */}
+          <td>{getCharityName(d.charity_ID)}</td>
+
+          {/* STATUS */}
+          <td>{d.donation_status}</td>
+
+          {/* PICKUP ADDRESS */}
+          <td>{d.pickup_address || "n/a"}</td>
+        </tr>
+      );
+    })
+  ) : (
+    <tr>
+      <td colSpan="6">No donations yet.</td>
+    </tr>
+  )}
+</tbody>
+
         </table>
       </div>
     </>

@@ -7,31 +7,55 @@ use Illuminate\Support\Facades\Auth;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use App\Models\DomainUser;
+use App\Models\Donor;
+use App\Models\Role;
+use App\Models\CharityStaff;
+
+
 
 class AuthController extends Controller
 {
     //login
     public function login(Request $request)
-    {
-        $request->validate([
-            'email' => 'required|email',
-            'password' => 'required|string',
-        ]);
-      
-        //finds user by their email in the User table
-        $user = DomainUser::where('user_email', $request->email)->first();
-        //checks if user does exist and password is correct
-        if ($user && Hash::check($request->password, $user->user_password)) {
-            return response()->json([
-                'status' => 'success',
-                'user' => $user]);
+{
+    $request->validate([
+        'email' => 'required|email',
+        'password' => 'required|string',
+    ]);
+
+    // Find user by email
+    $user = DomainUser::where('user_email', $request->email)->first();
+
+    if ($user && Hash::check($request->password, $user->user_password)) {
+
+        $userData = $user->toArray();
+
+        // Attach donor data if user is a donor
+        $donor = Donor::where('user_ID', $user->user_ID)->first();
+        if ($donor) {
+            $userData['donor'] = $donor;  // <-- IMPORTANT
         }
-        
+
+        // Attach charity staff charity_ID if charity staff
+        if ($user->role_id == 11) {
+            $charityStaff = CharityStaff::where('user_ID', $user->user_ID)->first();
+            if ($charityStaff) {
+                $userData['charity_ID'] = $charityStaff->charity_ID;
+            }
+        }
+
         return response()->json([
-            'status' => 'error',
-            'message' => 'Invalid credentials'
-        ], 401);
+            'status' => 'success',
+            'user' => $userData
+        ]);
     }
+
+    return response()->json([
+        'status' => 'error',
+        'message' => 'Invalid credentials'
+    ], 401);
+}
+
 
     //Sign up
     public function signup(Request $request)
