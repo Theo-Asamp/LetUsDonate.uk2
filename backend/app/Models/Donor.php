@@ -15,6 +15,11 @@ class Donor extends Model
         'user_ID',
     ];
 
+    public function user()
+    {
+        return $this->belongsTo(DomainUser::class, 'user_ID', 'user_ID');
+    }
+
     public function donations()
     {
         return $this->hasMany(Donation::class, 'donor_ID', 'donor_ID');

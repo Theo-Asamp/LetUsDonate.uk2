@@ -15,11 +15,12 @@ class Donation extends Model
         'charity_ID',
         'donation_status',
         'donation_date',
+        'pickup_address', 
     ];
 
-    public function items()
+    public function donor()
     {
-        return $this->hasMany(DonationItem::class, 'donation_ID', 'donation_ID');
+        return $this->belongsTo(Donor::class, 'donor_ID', 'donor_ID');
     }
 
     public function charity()
@@ -27,8 +28,8 @@ class Donation extends Model
         return $this->belongsTo(Charity::class, 'charity_ID', 'charity_ID');
     }
 
-    public function donor()
+    public function items()
     {
-        return $this->belongsTo(User::class, 'donor_ID', 'user_ID');
+        return $this->hasMany(DonationItem::class, 'donation_ID', 'donation_ID');
     }
 }

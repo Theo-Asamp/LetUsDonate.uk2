@@ -10,6 +10,25 @@ class Charity extends Model
     protected $primaryKey = 'charity_ID';
     public $timestamps = false;
 
-    // Add fillable if you need mass-assignment later:
-    // protected $fillable = ['charity_name', 'address', ...];
+    protected $fillable = [
+        'charity_name',
+        'charity_address',
+        'charity_email',
+        'contact_person',
+    ];
+
+    public function staff()
+    {
+        return $this->hasMany(CharityStaff::class, 'charity_ID', 'charity_ID');
+    }
+
+    public function donations()
+    {
+        return $this->hasMany(Donation::class, 'charity_ID', 'charity_ID');
+    }
+
+    public function inventory()
+    {
+        return $this->hasMany(Inventory::class, 'charity_ID', 'charity_ID');
+    }
 }

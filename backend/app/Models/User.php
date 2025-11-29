@@ -10,26 +10,21 @@ class User extends Authenticatable
 {
     use HasFactory, Notifiable;
 
-    // IMPORTANT: your PK is user_ID
-    protected $table = 'users';
-    protected $primaryKey = 'user_ID';
-    public $incrementing = true;
-    protected $keyType = 'int';
-
     /**
-     * The attributes that are mass assignable.
-     * Adjust/add fields if your table has more.
+     * attributes that are mass assignable.
+     *
+     * @var list<string>
      */
     protected $fillable = [
-        'first_name',
-        'last_name',
+        'name',
         'email',
         'password',
-        'role',
     ];
 
     /**
-     * Attributes that should be hidden for arrays / JSON.
+     * attributes hidden for serialization.
+     *
+     * @var list<string>
      */
     protected $hidden = [
         'password',
@@ -37,18 +32,15 @@ class User extends Authenticatable
     ];
 
     /**
-     * The attributes that should be cast.
+     * get attributes to be cast.
+     *
+     * @return array<string, string>
      */
-    protected $casts = [
-        'email_verified_at' => 'datetime',
-    ];
-
-    /**
-     * A user can have many donations.
-     * Uses donor_ID FK on Donation table.
-     */
-    public function donations()
+    protected function casts(): array
     {
-        return $this->hasMany(Donation::class, 'donor_ID', 'user_ID');
+        return [
+            'email_verified_at' => 'datetime',
+            'password' => 'hashed',
+        ];
     }
 }

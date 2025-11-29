@@ -4,17 +4,11 @@ import '../../../css/records.css';
 
 export function View_Inventory() {
   const role = localStorage.getItem('role');
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
 
-  const getReturnLink = () => {
-    switch (role) {
-      case 'charity':
-        return '/Charity_dashboard';
-      case 'admin':
-        return '/Admin_dashboard';
-      default:
-        return '/';
-    }
-  };
+  const [inventory, setInventory] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const [filters, setFilters] = useState({
     category: '',
@@ -22,44 +16,61 @@ export function View_Inventory() {
     condition: '',
   });
 
-  const [inventory] = useState([
-    {
-      id: 1,
-      name: 'Shirt',
-      category: "Men's",
-      type: 'Shirt',
-      condition: 'Like New',
-      quantity: 1,
-      image: 'https://via.placeholder.com/50',
-    },
-    {
-      id: 2,
-      name: 'Trousers',
-      category: "Women's",
-      type: 'Trouser',
-      condition: 'Used - Good',
-      quantity: 2,
-      image: 'https://via.placeholder.com/50',
-    },
-  ]);
+  const getReturnLink = () => {
+    switch (role) {
+      case '11':
+        return '/charity_dashboard';
+      case '12':
+        return '/admin_dashboard';
+      default:
+        return '/';
+    }
+  };
+
+  useEffect(() => {
+    const fetchInventory = async () => {
+      try {
+        let url = 'http://localhost:8000/api/inventory';
+        
+        // If charity staff, filter by their charity_ID
+        if (role === '11' && user.charity_ID) {
+          url += `?charity_ID=${user.charity_ID}`;
+        }
+
+        const res = await fetch(url);
+        const data = await res.json();
+
+        // Handle both array and object responses
+        const items = Array.isArray(data) ? data : data.data || [];
+        setInventory(items);
+        setLoading(false);
+      } catch (err) {
+        console.error('Error fetching inventory:', err);
+        setError('Failed to load inventory');
+        setLoading(false);
+      }
+    };
+
+    fetchInventory();
+  }, [role, user.user_ID]);
 
   const filteredInventory = inventory.filter((item) => {
     return (
       (filters.category === '' || item.category === filters.category) &&
-      (filters.type === '' || item.type === filters.type) &&
+      (filters.type === '' || item.item === filters.type) &&
       (filters.condition === '' || item.condition === filters.condition)
     );
   });
+
+  const categoryCounts = filteredInventory.reduce((acc, item) => {
+    acc[item.category] = (acc[item.category] || 0) + (item.quantity || 1);
+    return acc;
+  }, {});
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
     setFilters({ ...filters, [name]: value });
   };
-
-  const categoryCounts = filteredInventory.reduce((acc, item) => {
-    acc[item.category] = (acc[item.category] || 0) + item.quantity;
-    return acc;
-  }, {});
 
   return (
     <div>
@@ -126,36 +137,42 @@ export function View_Inventory() {
 
         {/* Table */}
         <div className="table-container">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Item ID</th>
-                <th>Item Name</th>
-                <th>Category</th>
-                <th>Type</th>
-                <th>Quantity</th>
-                <th>Condition</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredInventory.length > 0 ? (
-                filteredInventory.map((item) => (
-                  <tr key={item.id}>
-                    <td>{item.id}</td>
-                    <td>{item.name}</td>
-                    <td>{item.category}</td>
-                    <td>{item.type}</td>
-                    <td>{item.quantity}</td>
-                    <td>{item.condition}</td>
-                  </tr>
-                ))
-              ) : (
+          {loading ? (
+            <p>Loading inventory...</p>
+          ) : error ? (
+            <p style={{ color: 'red' }}>{error}</p>
+          ) : (
+            <table className="table">
+              <thead>
                 <tr>
-                  <td colSpan="7">No items match the selected filters.</td>
+                  <th>Item ID</th>
+                  <th>Item Name</th>
+                  <th>Category</th>
+                  <th>Type</th>
+                  <th>Quantity</th>
+                  <th>Size</th>
                 </tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {filteredInventory.length > 0 ? (
+                  filteredInventory.map((item) => (
+                    <tr key={item.inventory_ID}>
+                      <td>{item.inventory_ID}</td>
+                      <td>{item.item_name}</td>
+                      <td>{item.category}</td>
+                      <td>{item.item}</td>
+                      <td>{item.quantity}</td>
+                      <td>{item.size || 'N/A'}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan="6">No items match the selected filters.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          )}
         </div>
       </main>
     </div>

@@ -6,8 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class DonationItem extends Model
 {
-    protected $table = 'Donation_item';
-    protected $primaryKey = 'donation_item_ID';
+    protected $table = 'Donation_Item';
+    protected $primaryKey = 'item_ID';
     public $timestamps = false;
 
     protected $fillable = [
@@ -19,4 +19,9 @@ class DonationItem extends Model
         'item_description',
         'item_image',
     ];
+
+    public function donation()
+    {
+        return $this->belongsTo(Donation::class, 'donation_ID', 'donation_ID');
+    }
 }

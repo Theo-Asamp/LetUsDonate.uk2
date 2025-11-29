@@ -4,77 +4,93 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
 use App\Models\User;
+use Illuminate\Support\Facades\Hash;
+use App\Models\DomainUser;
+use App\Models\Donor;
+use App\Models\Role;
+use App\Models\CharityStaff;
+
+
 
 class AuthController extends Controller
 {
-    /**
-     * Login
-     */
+    //login
     public function login(Request $request)
-    {
-        $credentials = $request->validate([
-            'email'    => ['required', 'email'],
-            'password' => ['required', 'string'],
-        ]);
+{
+    $request->validate([
+        'email' => 'required|email',
+        'password' => 'required|string',
+    ]);
 
-        if (!Auth::attempt($credentials)) {
-            return response()->json([
-                'status'  => 'error',
-                'message' => 'Invalid email or password',
-            ], 401);
+    // Find user by email
+    $user = DomainUser::where('user_email', $request->email)->first();
+
+    if ($user && Hash::check($request->password, $user->user_password)) {
+
+        $userData = $user->toArray();
+
+        // Attach donor data if user is a donor
+        $donor = Donor::where('user_ID', $user->user_ID)->first();
+        if ($donor) {
+            $userData['donor'] = $donor;  // <-- IMPORTANT
         }
 
-        $user = Auth::user();
+        // Attach charity staff charity_ID if charity staff
+        if ($user->role_id == 11) {
+            $charityStaff = CharityStaff::where('user_ID', $user->user_ID)->first();
+            if ($charityStaff) {
+                $userData['charity_ID'] = $charityStaff->charity_ID;
+            }
+        }
 
         return response()->json([
             'status' => 'success',
-            'user'   => $user,
+            'user' => $userData
         ]);
     }
 
-    /**
-     * Signup / registration
-     * Expects: first_name, last_name, email, password, password_confirmation
-     */
+    return response()->json([
+        'status' => 'error',
+        'message' => 'Invalid credentials'
+    ], 401);
+}
+
+
+    //Sign up
     public function signup(Request $request)
     {
-        $data = $request->validate([
-            'first_name'            => ['required', 'string', 'max:255'],
-            'last_name'             => ['required', 'string', 'max:255'],
-            'email'                 => ['required', 'email', 'unique:users,email'],
-            'password'              => ['required', 'string', 'min:6', 'confirmed'],
+        //validates input
+        $request->validate([
+            'fullName' => 'required|string|max:255',
+            'email' => 'required|email|unique:User,user_email',
+            'password' => 'required|string|min:6',
         ]);
-
-        $user = User::create([
-            'first_name' => $data['first_name'],
-            'last_name'  => $data['last_name'],
-            'email'      => $data['email'],
-            'password'   => Hash::make($data['password']),
+    
+        //Automatically assigns the Donor role just becuase we only allow donors to signup due to security measures 
+        $donorRole = \App\Models\Role::firstOrCreate(
+            ['role_name' => 'donor'],
+            ['role_description' => 'A person who donates clothing or items.']
+        );
+    
+        //Creates the user
+        $user = \App\Models\DomainUser::create([
+            'user_name' => $request->fullName,
+            'user_email' => $request->email,
+            'user_password' => Hash::make($request->password),
+            'role_id' => $donorRole->role_id,
         ]);
-
-        Auth::login($user);
-
+    
+        //creates the donor record
+        \App\Models\Donor::create([
+            'user_ID' => $user->user_ID,
+            'donor_address' => null,
+        ]);
+    
         return response()->json([
             'status' => 'success',
-            'user'   => $user,
-        ], 201);
-    }
-
-    /**
-     * Logout (optional for your SPA)
-     */
-    public function logout(Request $request)
-    {
-        Auth::logout();
-
-        // If using session-based auth
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
-
-        return response()->json([
-            'status' => 'success',
+            'user' => $user
         ]);
     }
 }
+    

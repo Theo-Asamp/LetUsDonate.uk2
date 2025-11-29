@@ -3,7 +3,7 @@ import React, { useEffect } from 'react';
 
 // Headers & Footer
 import Header from './assets/components/Header.jsx';
-import Header_Alt from './assets/components/Header_Alt.jsx';
+import Header_alt from './assets/components/Header_alt.jsx';
 import Footer from './assets/components/Footer.jsx';
 
 // Initial pages
@@ -74,7 +74,7 @@ export default function Layout() {
   return (
     <>
       {/* Header */}   
-      {!hideHeaderFooter && (useAltHeader ? <Header_Alt /> : <Header />)}
+      {!hideHeaderFooter && (useAltHeader ? <Header_alt /> : <Header />)}
 
       <Routes>
         {/* Initial pages */}

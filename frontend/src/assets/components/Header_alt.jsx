@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import '../../css/header.css';
 
-export default function Header_Alt() {
+export default function Header_alt() {
   return (
     <header className="header">
       <div className="navbar">

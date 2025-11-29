@@ -13,82 +13,45 @@ export default function User_Dashboard() {
   const [modalOpen, setModalOpen] = useState(false);
   const [status, setStatus] = useState(null);
 
-  // --------------------------
-  // Load / check logged-in user
-  // --------------------------
+  // Load logged in user
   useEffect(() => {
     const storedUser = localStorage.getItem("user");
     if (!storedUser) {
       navigate("/login");
       return;
     }
-    try {
-      const parsed = JSON.parse(storedUser);
-      setUser(parsed);
-    } catch (e) {
-      console.error("Failed to parse stored user", e);
-      navigate("/login");
-    }
+    setUser(JSON.parse(storedUser));
   }, [navigate]);
 
-  // Helper: normalise user id + name from whatever backend returns
-  const userId =
-    user?.user_ID ??
-    user?.donor_ID ??
-    user?.id ??
-    user?.userId ??
-    null;
-
-  const userName =
-    user?.name ??
-    user?.Name ??
-    user?.username ??
-    user?.email ??
-    "";
-
-  // --------------------------
-  // Fetch donations for the user
-  // --------------------------
+  // Load donations
   useEffect(() => {
-    if (!userId) return;
+    if (!user?.donor?.donor_ID) return;
 
-    fetch(`http://localhost:8000/api/donations/${userId}`)
+    fetch(`http://localhost:8000/api/donations/user/${user.donor.donor_ID}`)
       .then((res) => res.json())
       .then((data) => {
-        if (data.status === "success" && Array.isArray(data.donations)) {
-          setDonations(data.donations);
-        } else {
-          console.warn("Unexpected donations payload:", data);
-        }
+        if (data.status === "success") setDonations(data.donations);
       })
-      .catch((err) => {
-        console.error("Error fetching donations:", err);
-      });
-  }, [userId]);
+      .catch((err) => console.error("Donation fetch error:", err));
+  }, [user]);
 
-  // --------------------------
-  // Fetch charities
-  // --------------------------
+  // Load charities
   useEffect(() => {
     fetch("http://localhost:8000/api/charities")
       .then((res) => res.json())
       .then((data) => {
-        if (data.status === "success" && Array.isArray(data.charities)) {
-          setCharities(data.charities);
-        } else {
-          console.warn("Unexpected charities payload:", data);
-        }
+        setCharities(data);
         setLoadingCharities(false);
       })
-      .catch((err) => {
-        console.error("Error fetching charities:", err);
-        setLoadingCharities(false);
-      });
+      .catch(() => setLoadingCharities(false));
   }, []);
 
-  // --------------------------
-  // File upload handling
-  // --------------------------
+  const getCharityName = (id) => {
+    const c = charities.find((x) => x.charity_ID === id);
+    return c ? c.charity_name : "Unknown";
+  };
+
+  // File preview
   const handleChange = (e) => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
@@ -102,77 +65,58 @@ export default function User_Dashboard() {
     setPreview(null);
   };
 
-  // --------------------------
-  // Submit new donation
-  // --------------------------
+  // Submit donation
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!userId) {
-      setStatus({ type: "error", message: "User not found. Please log in again." });
-      return;
-    }
+    if (!user?.donor?.donor_ID) return;
 
     const formData = new FormData(e.target);
-
-    // Send multiple possible keys so it works with either donor_ID or user_id
-    formData.append("user_id", userId);
-    formData.append("donor_ID", userId);
-
-    if (file) {
-      formData.append("item_image", file);
-    }
+    formData.append("donor_ID", user.donor.donor_ID);
+    if (file) formData.append("image", file);
 
     try {
       const res = await fetch("http://localhost:8000/api/donations", {
         method: "POST",
+        headers: {
+          "Accept": "application/json",  // ← FIXED
+        },
         body: formData,
       });
 
-      const data = await res.json();
+      const data = await res.json(); // will no longer blow up
+
       if (data.status === "success") {
-        setStatus({ type: "success", message: data.message || "Donation submitted successfully!" });
+        setStatus({ type: "success", message: data.message });
+
+        // Reset
         e.target.reset();
         setFile(null);
-        setPreview(null);
 
-        // Refresh donations list
-        fetch(`http://localhost:8000/api/donations/${userId}`)
+        // Reload donations
+        fetch(`http://localhost:8000/api/donations/user/${user.donor.donor_ID}`)
           .then((res) => res.json())
           .then((data) => {
-            if (data.status === "success" && Array.isArray(data.donations)) {
-              setDonations(data.donations);
-            }
-          })
-          .catch((err) => console.error("Error refreshing donations:", err));
+            if (data.status === "success") setDonations(data.donations);
+          });
       } else {
-        setStatus({ type: "error", message: data.message || "Unable to submit donation." });
+        setStatus({ type: "error", message: data.message });
       }
     } catch (err) {
-      console.error("Submit donation error:", err);
-      setStatus({ type: "error", message: "Network error. Please try again." });
+      setStatus({ type: "error", message: "Network error. Try again." });
     }
 
     setTimeout(() => setStatus(null), 6000);
   };
 
-  // --------------------------
-  // Logout
-  // --------------------------
   const handleLogout = () => {
     localStorage.removeItem("user");
     localStorage.removeItem("role");
     navigate("/login");
   };
 
-  // --------------------------
-  // Impact calculations (simple)
-  // --------------------------
-  const totalItems = donations.length;
-  const co2SavedKg = (totalItems * 1.5).toFixed(1); // fake metric
-  const peopleHelped = totalItems * 2; // fake metric
-
   return (
     <>
+      {/* DASHBOARD LAYOUT */}
       <div className="user-dashboard-container">
         <div className="dashboard-left">
           <div className="dashboard">
@@ -200,25 +144,26 @@ export default function User_Dashboard() {
             </aside>
 
             <main className="dashboard-main">
-              <h2>Welcome, {userName}</h2>
+              <h2>Welcome, {user?.name}</h2>
 
               <div className="stats-container">
                 <div className="stat-card">
-                  {/* FIXED: <ii> → <i> to remove React warning */}
                   <i className="fa-solid fa-earth-africa"></i>
-                  <p className="stat-number">{co2SavedKg}kg</p>
+                  <p className="stat-number">
+                    {(donations.length * 1.5).toFixed(1)}kg
+                  </p>
                   <p className="stat-text">CO₂ Saved</p>
                 </div>
 
                 <div className="stat-card">
                   <i className="fa-solid fa-shirt"></i>
-                  <p className="stat-number">{totalItems}</p>
+                  <p className="stat-number">{donations.length}</p>
                   <p className="stat-text">Total Items Donated</p>
                 </div>
 
                 <div className="stat-card">
                   <i className="fa-solid fa-heart"></i>
-                  <p className="stat-number">{peopleHelped}</p>
+                  <p className="stat-number">{donations.length * 2}</p>
                   <p className="stat-text">People Helped</p>
                 </div>
               </div>
@@ -226,10 +171,16 @@ export default function User_Dashboard() {
           </div>
         </div>
 
+        {/* DONATION FORM */}
         <div className="dashboard-right">
           <form className="new-donation" onSubmit={handleSubmit}>
             <h3>Make a New Donation</h3>
-            {status && <div className={`form-message ${status.type}`}>{status.message}</div>}
+
+            {status && (
+              <div className={`form-message ${status.type}`}>
+                {status.message}
+              </div>
+            )}
 
             <input type="text" name="item_name" placeholder="Item Name" required />
 
@@ -268,7 +219,8 @@ export default function User_Dashboard() {
             />
 
             <div className="file-upload">
-              <input type="file" accept="image/*" onChange={handleChange} />
+            <input type="file" name="image" accept="image/*" onChange={handleChange} />
+
               {file && preview && (
                 <div className="file-preview">
                   <div className="image-preview">
@@ -278,29 +230,15 @@ export default function User_Dashboard() {
                       className="thumbnail"
                       onClick={() => setModalOpen(true)}
                     />
-                    <button
-                      type="button"
-                      onClick={handleDeleteFile}
-                      className="remove-btn"
-                    >
+                    <button type="button" onClick={handleDeleteFile} className="remove-btn">
                       Remove
                     </button>
                   </div>
 
                   {modalOpen && (
-                    <div
-                      className="image-mode"
-                      onClick={() => setModalOpen(false)}
-                    >
-                      <div
-                        className="mode-content"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <img
-                          src={preview}
-                          alt="Full Preview"
-                          className="full-image"
-                        />
+                    <div className="image-mode" onClick={() => setModalOpen(false)}>
+                      <div className="mode-content" onClick={(e) => e.stopPropagation()}>
+                        <img src={preview} alt="Full Preview" className="full-image" />
                         <button
                           type="button"
                           className="close-modal-btn"
@@ -315,17 +253,12 @@ export default function User_Dashboard() {
               )}
             </div>
 
-            <input
-              type="text"
-              name="pickup_address"
-              placeholder="Pickup Address"
-              required
-            />
+            <input type="text" name="pickup_address" placeholder="Pickup Address" required />
 
             {loadingCharities ? (
               <p>Loading charities...</p>
             ) : (
-              <select name="charity_id" required>
+              <select name="charity_ID" required>
                 <option value="">Select Charity</option>
                 {charities.map((c) => (
                   <option key={c.charity_ID} value={c.charity_ID}>
@@ -333,7 +266,6 @@ export default function User_Dashboard() {
                   </option>
                 ))}
               </select>
-
             )}
 
             <button type="submit">Submit Donation</button>
@@ -341,80 +273,84 @@ export default function User_Dashboard() {
         </div>
       </div>
 
+      {/* DONATION HISTORY */}
       <div className="donation-history full-width">
         <h3>Recent Donations</h3>
+
         <table>
           <thead>
             <tr>
               <th>Item</th>
               <th>Image</th>
               <th>Date Submitted</th>
-              <th>Charity Selected</th>
+              <th>Charity</th>
               <th>Status</th>
               <th>Pickup Address</th>
             </tr>
           </thead>
-          <tbody>
-            {donations.length > 0 ? (
-              donations.slice(0, 4).map((d) => {
-                // Try to be robust to different backend field names
-                const itemName =
-                  d.item_name ?? d.itemName ?? d.item ?? "Item";
-                const donationDate = d.donation_date || d.created_at || "";
-                const charityName =
-                  d.charity_name ?? d.charityName ?? d.charity ?? "—";
-                const status = d.donation_status ?? d.status ?? "—";
-                const pickupAddress =
-                  d.pickup_address ?? d.pickupAddress ?? "n/a";
-                const imagePath = d.item_image ?? d.image ?? null;
 
-                const imgUrl = imagePath
-                  ? imagePath.startsWith("http")
-                    ? imagePath
-                    : `http://localhost:8000/storage/${imagePath}`
-                  : null;
+          <tbody>
+  {donations.length > 0 ? (
+    donations.slice(0, 4).map((d) => {
+      const item = d.items?.[0]; // first donated item
+
+      return (
+        <tr key={d.donation_ID}>
+          
+          {/* ITEM NAME */}
+          <td>{item?.item_name ?? "N/A"}</td>
+          {/* IMAGE */}
+          <td>
+            {item?.item_image ? (
+              (() => {
+                let path = item.item_image;
+
+                path = path.replace(/^public\//, "");
+
+                path = path.replace(/^\/+/, "");
+
+                const imageUrl = path.startsWith("http")
+                  ? path
+                  : `http://localhost:8000/storage/${path}`;
 
                 return (
-                  <tr key={d.donation_ID || d.id}>
-                    <td>{itemName}</td>
-                    <td>
-                      {imgUrl ? (
-                        <a
-                          href={imgUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          <img
-                            src={imgUrl}
-                            alt={itemName}
-                            style={{
-                              width: "50px",
-                              height: "auto",
-                              borderRadius: "4px",
-                            }}
-                          />
-                        </a>
-                      ) : (
-                        "N/A"
-                      )}
-                    </td>
-                    <td>
-                      {donationDate
-                        ? donationDate.split(" ")[0]
-                        : "—"}
-                    </td>
-                    <td>{charityName}</td>
-                    <td>{status}</td>
-                    <td>{pickupAddress}</td>
-                  </tr>
+                  <a href={imageUrl} target="_blank" rel="noopener noreferrer">
+                    <img
+                      src={imageUrl}
+                      alt={item.item_name}
+                      style={{ width: "50px", height: "auto", borderRadius: "4px" }}
+                    />
+                  </a>
                 );
-              })
+              })()
             ) : (
-              <tr>
-                <td colSpan="6">No donations yet.</td>
-              </tr>
+              "N/A"
             )}
-          </tbody>
+          </td>
+
+
+
+          {/* DATE */}
+          <td>{new Date(d.donation_date).toLocaleDateString()}</td>
+
+          {/* CHARITY */}
+          <td>{getCharityName(d.charity_ID)}</td>
+
+          {/* STATUS */}
+          <td>{d.donation_status}</td>
+
+          {/* PICKUP ADDRESS */}
+          <td>{d.pickup_address || "n/a"}</td>
+        </tr>
+      );
+    })
+  ) : (
+    <tr>
+      <td colSpan="6">No donations yet.</td>
+    </tr>
+  )}
+</tbody>
+
         </table>
       </div>
     </>

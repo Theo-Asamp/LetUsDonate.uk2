@@ -2,53 +2,39 @@ import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import "../../../css/records.css";
 
-export function My_Donations() {
+export default function My_Donations() {
   const [donations, setDonations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
 
   const user = JSON.parse(localStorage.getItem("user") || "{}");
-  const userId =
-    user?.user_ID ?? user?.id ?? user?.donor_ID ?? null;
 
   useEffect(() => {
-    if (!userId) return;
+    if (!user?.donor?.donor_ID) return;
 
-    fetch(`http://localhost:8000/api/donations/${userId}`)
+    fetch(`http://localhost:8000/api/donations/user/${user.donor.donor_ID}`)
       .then((res) => res.json())
       .then((data) => {
-        if (data.status === "success") {
-          setDonations(data.donations);
-        } else {
-          console.error("Error:", data);
-        }
+        if (data.status === "success") setDonations(data.donations);
         setLoading(false);
       })
       .catch((err) => {
-        console.error("Network error:", err);
+        console.error("Donation fetch error:", err);
         setLoading(false);
       });
-  }, [userId]);
+  }, [user]);
 
-  // Extract item fields safely  
-  const getItem = (donation) => donation.items?.[0] || {};
-
-  // Filtering logic
-  const filteredDonations = donations.filter((d) => {
-    const item = getItem(d);
+  // Filtering donations
+  const filtered = donations.filter((d) => {
+    const item = d.items?.[0];
 
     const matchesSearch =
-      (item.item_name || "")
-        .toLowerCase()
-        .includes(search.toLowerCase()) ||
-      (item.item_category || "")
-        .toLowerCase()
-        .includes(search.toLowerCase());
+      item?.item_name?.toLowerCase().includes(search.toLowerCase()) ||
+      item?.item_category?.toLowerCase().includes(search.toLowerCase());
 
     const matchesStatus = statusFilter
-      ? d.donation_status?.toLowerCase() ===
-        statusFilter.toLowerCase()
+      ? d.donation_status?.toLowerCase() === statusFilter.toLowerCase()
       : true;
 
     return matchesSearch && matchesStatus;
@@ -58,7 +44,7 @@ export function My_Donations() {
     <main>
       <div className="records-container">
         <div className="header-left">
-          <h2>My Donation History</h2>
+          <h2>Donation History</h2>
         </div>
 
         <div className="return-right">
@@ -72,7 +58,6 @@ export function My_Donations() {
         </div>
       </div>
 
-      {/* Filters */}
       <div className="filter-bar">
         <input
           type="text"
@@ -88,13 +73,12 @@ export function My_Donations() {
           onChange={(e) => setStatusFilter(e.target.value)}
         >
           <option value="">All Statuses</option>
-          <option value="Pending">Pending</option>
-          <option value="Approved">Approved</option>
-          <option value="Rejected">Rejected</option>
+          <option value="approved">Approved</option>
+          <option value="pending">Pending</option>
+          <option value="rejected">Rejected</option>
         </select>
       </div>
 
-      {/* Table */}
       <div className="table-container">
         <table className="table">
           <thead>
@@ -106,65 +90,60 @@ export function My_Donations() {
               <th>Image</th>
               <th>Date Donated</th>
               <th>Status</th>
-              <th>Charity</th>
             </tr>
           </thead>
+
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan="8">Loading donations...</td>
+                <td colSpan="7">Loading donations...</td>
               </tr>
-            ) : filteredDonations.length > 0 ? (
-              filteredDonations.map((d) => {
-                const item = getItem(d);
-
-                const imgUrl = item.item_image
-                  ? `http://localhost:8000/storage/${item.item_image}`
-                  : null;
-
+            ) : filtered.length > 0 ? (
+              filtered.map((d) => {
+                const item = d.items?.[0];
                 return (
                   <tr key={d.donation_ID}>
-                    <td>{item.item_category || "N/A"}</td>
-                    <td>{item.item_name || "N/A"}</td>
-                    <td>{item.item_description || "N/A"}</td>
-                    <td>{item.item_condition || "N/A"}</td>
+                    <td>{item?.item_category ?? "N/A"}</td>
+                    <td>{item?.item_name ?? "N/A"}</td>
+                    <td>{item?.item_description ?? "N/A"}</td>
+                    <td>{item?.item_condition ?? "N/A"}</td>
 
                     <td>
-                      {imgUrl ? (
-                        <a
-                          href={imgUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          <img
-                            src={imgUrl}
-                            alt={item.item_name}
-                            style={{
-                              width: "50px",
-                              height: "auto",
-                              borderRadius: "4px",
-                            }}
-                          />
-                        </a>
-                      ) : (
-                        "N/A"
-                      )}
-                    </td>
+                    {item?.item_image ? (
+                      (() => {
+                        let path = item.item_image;
 
-                    <td>
-                      {d.donation_date
-                        ? d.donation_date.split(" ")[0]
-                        : "N/A"}
-                    </td>
+                        path = path.replace(/^public\//, "");
 
-                    <td>{d.donation_status || "N/A"}</td>
-                    <td>{d.charity?.charity_name || "Unknown"}</td>
+                        path = path.replace(/^\/+/, "");
+
+                        const imageUrl = path.startsWith("http")
+                          ? path
+                          : `http://localhost:8000/storage/${path}`;
+
+                        return (
+                          <a href={imageUrl} target="_blank" rel="noopener noreferrer">
+                            <img
+                              src={imageUrl}
+                              alt={item.item_name}
+                              style={{ width: "50px", height: "auto", borderRadius: "4px" }}
+                            />
+                          </a>
+                        );
+                      })()
+                    ) : (
+                      "N/A"
+                    )}
+                  </td>
+
+                    <td>{new Date(d.donation_date).toLocaleDateString()}</td>
+                    <td>{d.donation_status}</td>
                   </tr>
                 );
               })
             ) : (
               <tr>
-                <td colSpan="8">No donations found.</td>
+                <td colSpan="7">No donations found.</td>
               </tr>
             )}
           </tbody>
@@ -173,5 +152,3 @@ export function My_Donations() {
     </main>
   );
 }
-
-export default My_Donations;

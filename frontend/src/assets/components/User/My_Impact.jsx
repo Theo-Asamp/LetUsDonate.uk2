@@ -1,59 +1,32 @@
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import '../../../css/my_impact.css';
+import React, { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
+import "../../../css/my_impact.css";
 
-export function My_Impact() {
+export default function My_Impact() {
   const [donations, setDonations] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Get logged-in user
-  const storedUser = localStorage.getItem("user");
-  let user = {};
-
-  try {
-    user = JSON.parse(storedUser || "{}");
-  } catch {
-    user = {};
-  }
-
-  // Normalise user ID from your DB (id, user_ID, donor_ID)
-  const userId =
-    user?.user_ID ??
-    user?.id ??
-    user?.donor_ID ??
-    null;
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
 
   useEffect(() => {
-    if (!userId) {
+    if (!user?.donor?.donor_ID) {
       setLoading(false);
       return;
     }
 
-    // USE LARAVEL API — NOT THE OLD PHP FILE
-    fetch(`http://localhost:8000/api/donations/${userId}`)
+    fetch(`http://localhost:8000/api/donations/user/${user.donor.donor_ID}`)
       .then((res) => res.json())
       .then((data) => {
-        if (data.status === "success" && Array.isArray(data.donations)) {
-          setDonations(data.donations);
-        } else {
-          console.warn("Unexpected donations payload:", data);
-        }
+        if (data.status === "success") setDonations(data.donations);
         setLoading(false);
       })
       .catch((err) => {
-        console.error("Error fetching donations:", err);
+        console.error("Impact fetch error:", err);
         setLoading(false);
       });
-  }, [userId]);
+  }, [user]);
 
-  // SIMPLE IMPACT STATS
-  const totalDonations = donations.length;
-
-  // If using donation_item table: sum quantities instead of counting donations
-  const totalItems = donations.reduce((sum, d) => {
-    return sum + (d.quantity ? Number(d.quantity) : 1);
-  }, 0);
-
+  const totalItems = donations.length;
   const totalCO2 = (totalItems * 1.5).toFixed(1);
   const peopleHelped = totalItems * 2;
 
@@ -65,7 +38,7 @@ export function My_Impact() {
         </div>
 
         <div className="return-right">
-          <Link to="/User_dashboard" className="return-link">
+          <Link to="/User_Dashboard" className="return-link">
             Return
           </Link>
         </div>
@@ -80,12 +53,11 @@ export function My_Impact() {
         <p>Loading your impact...</p>
       ) : (
         <div className="impact-grid">
-
           {/* Total Items Donated */}
           <div className="impact-card">
             <i className="fa-solid fa-shirt fa-2x"></i>
             <h3>{totalItems}</h3>
-            <p>Total individual items you've donated so far.</p>
+            <p>Total items you've donated so far.</p>
           </div>
 
           {/* CO₂ Saved */}
@@ -99,19 +71,10 @@ export function My_Impact() {
           <div className="impact-card">
             <i className="fa-solid fa-heart fa-2x"></i>
             <h3>{peopleHelped}</h3>
-            <p>Estimated number of people helped through your donations.</p>
-          </div>
-
-          {/* Total donation submissions */}
-          <div className="impact-card">
-            <i className="fa-solid fa-box fa-2x"></i>
-            <h3>{totalDonations}</h3>
-            <p>Total donation submissions you’ve made.</p>
+            <p>People who benefited from your donations.</p>
           </div>
         </div>
       )}
     </main>
   );
 }
-
-export default My_Impact;
